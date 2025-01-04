@@ -1,11 +1,10 @@
 import React from 'react';
-import Navbar from '../Components/Navbar';
-// import { Link } from 'react-router-dom';
+import Footer from '../Components/Footer';
+import { Link } from 'react-router-dom';
 
 const Home = () => {
   return (
     <>
-    <Navbar/>
     <div className="container my-2">
       <div className="row">
       <h2 className='text-center'>Welcome to FriendCircle</h2>
@@ -41,15 +40,16 @@ const Home = () => {
           <strong>Connecting You, Protecting You.</strong> Join <strong>FriendCircle</strong> today and easily manage your notes with peace of mind.
           </p>
           <div className='d-flex justify-content-center'>
-          {/* {localStorage.getItem("token") ? <Link to="/dashboard" className="btn btn-primary">
+          {localStorage.getItem("token") ? <Link to="/dashboard" className="btn btn-primary">
             Dashboard
           </Link> : <Link to="/register" className="btn btn-primary">
             Register Now
-          </Link>} */}
+          </Link>}
           </div>
         </div>
       </div>
     </div>
+    <Footer/>
     </>
   );
 };
