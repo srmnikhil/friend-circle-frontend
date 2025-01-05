@@ -13,7 +13,7 @@ const Login = ({ loading, setLoading }) => {
   const handleSubmit = async (evt) => {
     evt.preventDefault();
     setError({ password: false });
-    
+
     if (credentials.password.length < 8) {
       setError({ password: true });
       return;
@@ -27,7 +27,7 @@ const Login = ({ loading, setLoading }) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email: credentials.email, password: credentials.password })
-      }); 
+      });
       const json = await response.json();
       if (json.success) {
         setTimeout(() => {
@@ -35,7 +35,7 @@ const Login = ({ loading, setLoading }) => {
           navigate("/dashboard", { replace: true });
           setLoading(false);
         }, 3000);
-        toast.success("Logged in Successfully, Navigating to dashboard in 3 seconds....", {autoClose: 2500});
+        toast.success("Logged in Successfully, Navigating to dashboard in 3 seconds....", { autoClose: 2500 });
       } else {
         setLoading(false);
         toast.error('Invalid Credentials, Try logging with correct credentials');
@@ -124,7 +124,7 @@ const Login = ({ loading, setLoading }) => {
           </form>
         </div>
       </div>
-      <ToastContainer position="bottom-right"/>
+      <ToastContainer position="bottom-right" />
     </div>
   )
 }

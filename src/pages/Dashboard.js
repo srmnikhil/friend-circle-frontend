@@ -1,46 +1,175 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Card, CardContent, Typography, Box, CircularProgress, TextField, IconButton, List, ListItem, Button, InputAdornment } from '@mui/material';
-import Grid from '@mui/material/Grid2';
+import { useNavigate } from 'react-router-dom';
+import { Grid, Card, CardContent, Typography, Box, CircularProgress, TextField, IconButton, List, ListItem, InputAdornment } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import PendingActionsIcon from '@mui/icons-material/PendingActions';
+import CancelIcon from '@mui/icons-material/Cancel';
 import axios from 'axios';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const location = useLocation(); // To get the current route
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentUserId, setCurrentUserId] = useState(localStorage.getItem('currentUserId') || '');
   const [friendRecommendations, setFriendRecommendations] = useState([]);
   const [yourFriends, setYourFriends] = useState([]);
   const [friendRequests, setFriendRequests] = useState([]);
-  const [pendingFriends, setPendingFriends] = useState([]); // New state for pending friends
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (localStorage.getItem('token')) {
       fetchFriendRecommendations();
-      setYourFriends(sampleFriends);
+      fetchFriendRequests(); // Fetch all requests
+      fetchCurrentUser();
     } else {
       navigate('/login', { replace: true });
     }
   }, [navigate]);
 
+  const fetchCurrentUser = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('http://localhost:5000/api/auth/user', {
+        headers: { 'auth-token': token },
+      });
+      const userId = response.data.user._id;
+      setCurrentUserId(userId);
+      localStorage.setItem('currentUserId', userId);
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+    }
+  };
+
+  const fetchFriendRequests = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('http://localhost:5000/api/request/fetchall', {
+        headers: { 'auth-token': token },
+      });
+
+      // Process all friend requests (sent and received)
+      const friendRequestsWithDetails = await Promise.all(
+        [...response.data.sentRequests, ...response.data.receivedRequests].map(async (request) => {
+          const userDetails = await fetchUserDetails(request.senderId !== currentUserId ? request.senderId : request.receiverId);
+          return { ...request, name: userDetails.name, city: userDetails.city };
+        })
+      );
+
+      // Separate the requests based on their status
+      const pendingRequests = friendRequestsWithDetails.filter(request => request.status === 'Pending');
+      const acceptedRequests = friendRequestsWithDetails.filter(request => request.status === 'Accepted');
+
+      // Set the states based on the status
+      setFriendRequests(pendingRequests);
+      setYourFriends(acceptedRequests);
+      // setFriendRecommendations(otherRequests);
+
+    } catch (error) {
+      console.error('Error fetching all friend requests:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  const fetchUserDetails = async (userId) => {
+    try {
+      const response = await axios.get(`http://localhost:5000/api/request/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user details:', error);
+    }
+  };
+
   const fetchFriendRecommendations = async (query = '') => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
+
+      // Fetch friend recommendations
       const response = await axios.get('http://localhost:5000/api/friends', {
         headers: { Authorization: `Bearer ${token}` },
         params: { search: query },
       });
-      setFriendRecommendations(response.data);
+      // Fetch existing friend requests (both sent and received)
+      const requestsResponse = await axios.get('http://localhost:5000/api/request/fetchall', {
+        headers: { 'auth-token': token },
+      });
+
+      // Extract the user IDs from the requests (sent and received) that have a valid status (pending or accepted)
+      const validRequestUserIds = [
+        ...requestsResponse.data.sentRequests,
+        ...requestsResponse.data.receivedRequests,
+      ]
+        .filter(request => request.status === 'Pending' || request.status === 'Accepted')
+        .map(request => (request.senderId !== currentUserId ? request.senderId : request.receiverId));
+
+      // Step 1: Convert validRequestUserIds to a Set for faster lookups (optional but improves performance)
+      const validRequestUserIdsSet = new Set(validRequestUserIds);
+
+      // Step 2: Filter out recommendations where the user is already in validRequestUserIdsSet
+      const filteredRecommendations = response.data.filter(friend => {
+        // Check if the friend's ID is in validRequestUserIdsSet
+        const isAlreadyRequested = validRequestUserIdsSet.has(friend._id);
+        return !isAlreadyRequested;  // Exclude if the friend has a valid request
+      });
+
+      // Set the filtered friend recommendations
+      setFriendRecommendations(filteredRecommendations);
+
     } catch (error) {
       console.error('Error fetching friend recommendations:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+
+
+  const handleRequestResponse = async (requestId, action) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post('http://localhost:5000/api/request/handle', { requestId, action }, {
+        headers: { 'auth-token': token },
+      });
+      // If the request is accepted, add the user to your friends list
+      if (action === 'accept') {
+        const acceptedRequest = friendRequests.find(request => request.requestId === requestId);
+        const newFriend = {
+          _id: acceptedRequest.senderId !== currentUserId ? acceptedRequest.senderId : acceptedRequest.receiverId,
+          name: acceptedRequest.name,
+          city: acceptedRequest.city,
+        };
+        setYourFriends(prevFriends => [...prevFriends, newFriend]);
+      }
+
+      // Filter out the accepted/rejected request from the list
+      setFriendRequests(friendRequests.filter(request => request.requestId !== requestId));
+      fetchFriendRecommendations();
+    } catch (error) {
+      console.error('Error handling friend request:', error);
+    }
+  };
+
+  const handleAddFriend = async (id) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post('http://localhost:5000/api/request/send', { receiverId: id }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'auth-token': token
+        },
+      });
+      console.log("Friend request sent successfully.")
+    } catch (error) {
+      console.error("Error sending friend request:", error);
+    }
+    fetchFriendRequests(); // Re-fetch requests
+    fetchFriendRecommendations();
   };
 
   const handleSearch = () => {
@@ -51,49 +180,22 @@ const Dashboard = () => {
   const handleReset = () => {
     setSearchQuery('');
     fetchFriendRecommendations();
-  };
+  };  
 
-  const handleRequestResponse = (id, response) => {
-    setFriendRequests(friendRequests.filter((request) => request.id !== id));
-  };
-
-  const handleAddFriend = (id) => {
-    // Find the friend to add from the friendRecommendations list
-    const friendToAdd = friendRecommendations.find((friend) => friend._id === id);
-
-    if (friendToAdd) {
-      // Move the friend to the pending friends list
-      setPendingFriends([...pendingFriends, friendToAdd]);
-
-      // Remove the friend from the recommendations list
-      setFriendRecommendations(friendRecommendations.filter((friend) => friend._id !== id));
+  const handleUnfriend = async (id) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://localhost:5000/api/request/unfriend/${id}`, {
+        headers: {
+          "auth-token": token
+        }
+      });
+      await fetchFriendRecommendations();
+      setYourFriends(yourFriends.filter(friend => friend._id !== id));
+    } catch (error) {
+      console.error('Error unfriending user:', error);
     }
   };
-
-  const handleUnfriend = (id) => {
-    setYourFriends(yourFriends.filter((friend) => friend._id !== id));
-  };
-
-  const handleCancelPending = (id) => {
-    setPendingFriends(pendingFriends.filter((friend) => friend._id !== id));
-    // Optionally, you can add the friend back to friendRecommendations
-  };
-
-  // Sample array of 8-10 friends for demonstration
-  const sampleFriends = [
-    { _id: '1', name: 'Alice', city: 'New York' },
-    { _id: '2', name: 'Bob', city: 'Los Angeles' },
-    { _id: '3', name: 'Charlie', city: 'Chicago' },
-    { _id: '4', name: 'David', city: 'Miami' },
-    { _id: '5', name: 'Eva', city: 'San Francisco' },
-    { _id: '6', name: 'Frank', city: 'Seattle' },
-    { _id: '7', name: 'Grace', city: 'Austin' },
-    { _id: '8', name: 'Helen', city: 'Boston' },
-    { _id: '9', name: 'Ian', city: 'Denver' },
-    { _id: '10', name: 'Jack', city: 'Dallas' },
-  ];
-
-  const isPendingRequestsRoute = location.pathname === '/pending-requests';
 
   return (
     <Box sx={{ p: 3 }}>
@@ -106,32 +208,68 @@ const Dashboard = () => {
 
       <Grid container spacing={2} sx={{ height: 'calc(100vh-100px)' }}>
         {/* Friend Requests or Pending Requests Section */}
-        <Grid item xs={12} size={4}>
+        <Grid item xs={12} md={4}>
           <Card sx={{ height: '65vh' }}>
             <CardContent sx={{ height: '100%', overflow: 'auto' }}>
               <Typography variant="h6" sx={{ mb: 2 }}>
-                {isPendingRequestsRoute ? 'Pending Requests' : 'Friend Requests'}
+                Friend Requests
               </Typography>
+
               <List>
-                {(isPendingRequestsRoute ? friendRequests : []).map((request) => (
-                  <ListItem key={request.id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Box>
-                      <Typography>{request.name}</Typography>
-                      <Typography variant="body2" color="textSecondary">City: {request.city}</Typography>
-                    </Box>
-                    <Box>
-                      <Button variant="contained" color="primary" sx={{ mr: 1 }} onClick={() => handleRequestResponse(request.id, true)}>Accept</Button>
-                      <Button variant="outlined" color="error" onClick={() => handleRequestResponse(request.id, false)}>Reject</Button>
-                    </Box>
-                  </ListItem>
-                ))}
+                {friendRequests.length > 0 ? (
+                  friendRequests.map((request) => (
+                    <ListItem
+                      key={request._id || `${request.senderId}-${request.receiverId}`}
+                      sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                    >
+                      <Box>
+                        <Typography>{request.name}</Typography>
+                        <Typography variant="body2" color="textSecondary">
+                          City: {request.city}
+                        </Typography>
+                        <Typography variant="caption" color="textSecondary">
+                          Status: {request.status}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        {request.senderId !== currentUserId && (
+                          <IconButton
+                            color="success"
+                            onClick={() => handleRequestResponse(request.requestId, "accept")}
+                          >
+                            <CheckCircleIcon />
+                          </IconButton>
+                        )}
+                        <IconButton
+                          color="warning"
+                        >
+                          <PendingActionsIcon />
+                        </IconButton>
+                        <IconButton
+                          color="error"
+                          onClick={() => handleRequestResponse(request.requestId, "reject")}
+                        >
+                          <CancelIcon />
+                        </IconButton>
+                      </Box>
+                    </ListItem>
+                  ))
+                ) : (
+                  <Typography
+                    variant="body2"
+                    color="textSecondary"
+                    sx={{ ml: 2, fontStyle: 'italic' }}
+                  >
+                    No Friend Requests Yet
+                  </Typography>
+                )}
               </List>
             </CardContent>
           </Card>
         </Grid>
 
         {/* Friend Recommendations Section with Search Bar */}
-        <Grid item xs={12} size={4}>
+        <Grid item xs={12} md={4}>
           <Card sx={{ height: '65vh' }}>
             <CardContent sx={{ height: '100%', overflow: 'auto' }}>
               <Typography variant="h6" sx={{ mb: 2 }}>Friend Recommendations</Typography>
@@ -189,7 +327,7 @@ const Dashboard = () => {
         </Grid>
 
         {/* Your Friends Section */}
-        <Grid item xs={12} size={4}>
+        <Grid item xs={12} md={4}>
           <Card sx={{ height: '65vh' }}>
             <CardContent sx={{ height: '100%', overflow: 'auto' }}>
               <Typography variant="h6" sx={{ mb: 2 }}>Your Friends List</Typography>
@@ -200,17 +338,19 @@ const Dashboard = () => {
               ) : (
                 <List>
                   {yourFriends.length > 0 ? yourFriends.map((friend) => (
-                    <ListItem key={friend._id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <ListItem key={friend.receiverId} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Box>
                         <Typography>{friend.name}</Typography>
                         <Typography variant="body2" color="textSecondary">City: {friend.city}</Typography>
                       </Box>
-                      <IconButton onClick={() => handleUnfriend(friend._id)} color="error">
+                      <IconButton onClick={() => {
+                        handleUnfriend(friend.senderId);
+                      }} color="error">
                         <RemoveCircleIcon />
                       </IconButton>
                     </ListItem>
                   )) : (
-                    <Typography variant="body2" color="text.secondary">No friends added yet</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ ml: 2, fontStyle: "italic" }}>No friends added yet</Typography>
                   )}
                 </List>
               )}
