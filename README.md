@@ -27,8 +27,9 @@ The backend for this application is hosted [here](https://friend-circle-backend.
 
 ---
 
-## Installation
+## Visit the [FriendCircle](https://friend-circle-backend.onrender.com)
 
 1. Clone the repository:
    ```bash
    git clone https://github.com/yourusername/friend-circle-frontend.git
+
