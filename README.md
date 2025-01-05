@@ -27,9 +27,8 @@ The backend for this application is hosted [here](https://friend-circle-backend.
 
 ---
 
-## Visit the [FriendCircle](https://friend-circle-backend.onrender.com)
+## Visit the [FriendCircle Here](https://friend-circle-frontend.vercel.app/))
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/friend-circle-frontend.git
-
+1. Register and Login
+2. Add Friends
+3. Manage Friend Request
