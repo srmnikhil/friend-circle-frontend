@@ -17,7 +17,7 @@ function App() {
   const fetchUser = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/auth/user`, {
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/auth/user`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

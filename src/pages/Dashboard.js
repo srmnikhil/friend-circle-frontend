@@ -32,7 +32,7 @@ const Dashboard = () => {
   const fetchCurrentUser = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/auth/user', {
+      const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/auth/user`, {
         headers: { 'auth-token': token },
       });
       const userId = response.data.user._id;
@@ -47,7 +47,7 @@ const Dashboard = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/request/fetchall', {
+      const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/request/fetchall`, {
         headers: { 'auth-token': token },
       });
 
@@ -75,10 +75,9 @@ const Dashboard = () => {
     }
   };
 
-
   const fetchUserDetails = async (userId) => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/request/${userId}`);
+      const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/request/${userId}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching user details:', error);
@@ -91,12 +90,12 @@ const Dashboard = () => {
       const token = localStorage.getItem('token');
 
       // Fetch friend recommendations
-      const response = await axios.get('http://localhost:5000/api/friends', {
+      const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/friends`, {
         headers: { Authorization: `Bearer ${token}` },
         params: { search: query },
       });
       // Fetch existing friend requests (both sent and received)
-      const requestsResponse = await axios.get('http://localhost:5000/api/request/fetchall', {
+      const requestsResponse = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/request/fetchall`, {
         headers: { 'auth-token': token },
       });
 
@@ -128,12 +127,10 @@ const Dashboard = () => {
     }
   };
 
-
-
   const handleRequestResponse = async (requestId, action) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5000/api/request/handle', { requestId, action }, {
+      await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/request/handle`, { requestId, action }, {
         headers: { 'auth-token': token },
       });
       // If the request is accepted, add the user to your friends list
@@ -158,7 +155,7 @@ const Dashboard = () => {
   const handleAddFriend = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5000/api/request/send', { receiverId: id }, {
+      await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/request/send`, { receiverId: id }, {
         headers: {
           'Content-Type': 'application/json',
           'auth-token': token
@@ -180,12 +177,12 @@ const Dashboard = () => {
   const handleReset = () => {
     setSearchQuery('');
     fetchFriendRecommendations();
-  };  
+  };
 
   const handleUnfriend = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/request/unfriend/${id}`, {
+      await axios.delete(`${process.env.REACT_APP_BACKEND_URL}/api/request/unfriend/${id}`, {
         headers: {
           "auth-token": token
         }

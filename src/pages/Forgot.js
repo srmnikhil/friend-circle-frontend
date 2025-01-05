@@ -23,7 +23,7 @@ const Forgot = ({ loading, setLoading }) => {
     const handleVerify = async (evt) => {
         evt.preventDefault();
         setLoading(true);
-        const response = await fetch(`http://localhost:5000/api/users/verify`, {
+        const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/users/verify`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -51,7 +51,7 @@ const Forgot = ({ loading, setLoading }) => {
         evt.preventDefault();
         setLoading(true);
         try {
-            const response = await fetch(`http://localhost:5000/api/users/forgotpassword`, {
+            const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/users/forgotpassword`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
