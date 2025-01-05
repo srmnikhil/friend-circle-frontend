@@ -28,7 +28,7 @@ The backend for this application is hosted [here](https://friend-circle-backend.
 ---
 
 ## Visit the [FriendCircle Here](https://friend-circle-frontend.vercel.app/)
-    `First time registering or logging in might take 1-2 minutes, because of free deployment of Backend Web Service, then refresh the page and then it will work fine.`
+   **Important Note:-**: First time registering or logging in might take 1-2 minutes, because of free deployment of Backend Web Service, then refresh the page and then it will work fine.
 1. Register and Login
 2. Add Friends
 3. Manage Friend Request
